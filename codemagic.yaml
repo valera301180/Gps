@@ -1,14 +1,21 @@
 workflows:
   build-taxi-app:
     name: Сборка Такси Шаран
+    max_build_duration: 60
     instance_type: mac_mini_m1
     environment:
       node: latest
-      java: corretto@17
+      java: zulu@11
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
     scripts:
       - name: Установка библиотек
         script: |
-          npm install
+          npm ci
           npx cap sync android
       - name: Сборка APK
         script: |
