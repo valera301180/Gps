@@ -66,9 +66,9 @@ class GeoUploadService : Service() {
     private fun createLocationRequest() {
         locationRequest = LocationRequest.Builder(
             Priority.PRIORITY_HIGH_ACCURACY,
-            15000L // Каждые 15 секунд
+            15000L
         )
-            .setMinUpdateDistanceMeters(50f) // Или каждые 50 метров
+            .setMinUpdateDistanceMeters(50f)
             .build()
     }
 
@@ -115,8 +115,7 @@ class GeoUploadService : Service() {
                     put("timestamp", System.currentTimeMillis() / 1000)
                 }
 
-                // ВАЖНО: Замени на свой URL!
-                val url = URL("https://твой-сайт.ru/taxi/driver/geo_listener.php")
+                val url = URL("https://xn----8sbabh5aabeo1n6a.xn--p1ai/taxi/driver/geo_listener.php")
                 val conn = url.openConnection() as HttpURLConnection
                 conn.requestMethod = "POST"
                 conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
@@ -132,7 +131,7 @@ class GeoUploadService : Service() {
                 Log.i("GeoService", "Отправлено. Код: $responseCode")
 
                 if (responseCode == HttpURLConnection.HTTP_OK) {
-                    Log.i("GeoService", "✅ Успешно отправлено: ${location.latitude}, ${location.longitude}")
+                    Log.i("GeoService", "✅ Успешно: ${location.latitude}, ${location.longitude}")
                 }
 
                 conn.disconnect()
@@ -145,8 +144,8 @@ class GeoUploadService : Service() {
 
     private fun startForegroundService() {
         createNotificationChannel()
-        val notificationIntent = Intent(this, MainActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(
+
+        val notificationIntent = Intent(this, MainActivity::class.java)        val pendingIntent = PendingIntent.getActivity(
             this, 0, notificationIntent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
