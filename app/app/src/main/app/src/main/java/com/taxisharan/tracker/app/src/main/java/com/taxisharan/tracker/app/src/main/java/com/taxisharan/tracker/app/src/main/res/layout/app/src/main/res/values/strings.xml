@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">GPS Трекер</string>
+    <string name="driver_id_hint">ID Водителя</string>
+    <string name="api_key_hint">API Key</string>
+    <string name="save_settings">Сохранить настройки</string>
+    <string name="start_tracking">Начать отслеживание</string>
+    <string name="stop_tracking">Остановить</string>
+    <string name="settings_saved">Настройки сохранены!</string>
+    <string name="fill_both_fields">Заполните оба поля</string>
+    <string name="service_started">Служба запущена! GPS отправляется.</string>
+    <string name="gps_notification_title">📍 GPS Трекер</string>
+    <string name="gps_notification_text">Отправка координат активна</string>
+    <string name="channel_name">GPS Трекер</string>
+    <string name="channel_description">Фоновая отправка геолокации</string>
+</resources>
