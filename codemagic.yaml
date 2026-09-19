@@ -28,5 +28,5 @@ workflows:
         script: |
           gradle assembleRelease --stacktrace
     artifacts:
-      - build/**/outputs/apk/**/*.apk
-      - build/**/outputs/aab/**/*.aab
+      - build/**/outputs/apk/release/*.apk
+      - build/**/outputs/apk/debug/*.apk
