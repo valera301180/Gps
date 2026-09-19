@@ -14,17 +14,7 @@ workflows:
           echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
       - name: Build Android APK
         script: |
-          gradle assembleRelease --stacktrace
-          # Показываем все созданные APK файлы
-          find build -name "*.apk" -type f
-      - name: Copy APK to artifacts
-        script: |
-          mkdir -p artifacts
-          if [ -f "build/outputs/apk/release/app-release.apk" ]; then
-            cp build/outputs/apk/release/app-release.apk artifacts/
-          fi
-          if [ -f "build/outputs/apk/debug/app-debug.apk" ]; then
-            cp build/outputs/apk/debug/app-debug.apk artifacts/
-          fi
+          gradle assembleRelease
     artifacts:
-      - artifacts/*.apk
+      - build/**/outputs/**/*.apk
+      - build/**/outputs/**/*.aab
