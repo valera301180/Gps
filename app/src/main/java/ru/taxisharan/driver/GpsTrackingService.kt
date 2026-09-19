@@ -7,18 +7,24 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.location.Location
+import android.os.BatteryManager
 import android.os.Build
 import android.os.IBinder
-import android.os.PowerManager
 import androidx.core.app.NotificationCompat
-import com.google.android.gms.location.*
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
 
 class GpsTrackingService : Service() {
 
@@ -35,31 +41,29 @@ class GpsTrackingService : Service() {
     private var isPassiveMode = false
     private var driverId: String = ""
     private val client = OkHttpClient()
-
-    // Очередь для кэширования при обрыве связи
     private val pendingUpdates = mutableListOf<String>()
 
     override fun onCreate() {
         super.onCreate()
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         createNotificationChannel()
-        isRunning = true
-    }
+        isRunning = true    }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {            ACTION_START -> {
+        when (intent?.action) {
+            ACTION_START -> {
                 driverId = intent.getStringExtra("driver_id") ?: "UNKNOWN"
                 isPassiveMode = false
                 startForeground(NOTIF_ID, createNotification("🔵 Трекинг активен"))
-                startLocationUpdates(3000L) // 3 секунды
+                startLocationUpdates(3000L)
             }
             ACTION_PAUSE -> {
                 isPassiveMode = true
                 startForeground(NOTIF_ID, createNotification("🟡 Пассивный режим"))
-                startLocationUpdates(60000L) // 60 секунд
+                startLocationUpdates(60000L)
             }
         }
-        processPendingUpdates() // Пытаемся отправить накопленное
+        processPendingUpdates()
         return START_STICKY
     }
 
@@ -87,18 +91,24 @@ class GpsTrackingService : Service() {
         val mode = if (isPassiveMode) "passive" else "active"
         val timestamp = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault()).format(Date())
         
-        // Получаем заряд батареи
-        val batteryIntent = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        val batteryLevel = batteryIntent?.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1) ?: -1
-        val batteryScale = batteryIntent?.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, -1) ?: -1
-        val batteryPct = if (batteryLevel >= 0 && batteryScale > 0) (batteryLevel * 100 / batteryScale) else 0
+        var batteryPct = 0
+        try {
+            val batteryIntent = this.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            val level = batteryIntent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+            val scale = batteryIntent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+            if (level >= 0 && scale > 0) {                batteryPct = (level * 100 / scale)
+            }
+        } catch (e: Exception) {
+            batteryPct = 0
+        }
 
-        // Используем встроенный JSONObject вместо Gson
+        // Явное приведение типов для JSONObject
         val json = JSONObject().apply {
             put("driver_id", driverId)
-            put("lat", location.latitude)            put("lon", location.longitude)
-            put("accuracy", location.accuracy)
-            put("speed", location.speed)
+            put("lat", location.latitude)
+            put("lon", location.longitude)
+            put("accuracy", location.accuracy.toDouble())
+            put("speed", location.speed.toDouble())
             put("battery", batteryPct)
             put("mode", mode)
             put("timestamp", timestamp)
@@ -135,8 +145,7 @@ class GpsTrackingService : Service() {
             override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
                 if (response.isSuccessful) {
                     val prefs = getSharedPreferences("TaxiPrefs", Context.MODE_PRIVATE)
-                    prefs.edit().putInt("points_sent", prefs.getInt("points_sent", 0) + 1).apply()
-                }
+                    prefs.edit().putInt("points_sent", prefs.getInt("points_sent", 0) + 1).apply()                }
             }
         })
     }
@@ -145,8 +154,9 @@ class GpsTrackingService : Service() {
         loadPendingFromPrefs()
         val iterator = pendingUpdates.iterator()
         while (iterator.hasNext()) {
-            val json = iterator.next()            if (isNetworkAvailable()) {
-                sendToServer(json)
+            val jsonStr = iterator.next()
+            if (isNetworkAvailable()) {
+                sendToServer(jsonStr)
                 iterator.remove()
             } else {
                 break
@@ -156,7 +166,7 @@ class GpsTrackingService : Service() {
     }
 
     private fun isNetworkAvailable(): Boolean {
-        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager ?: return false
         val network = cm.activeNetwork ?: return false
         val capabilities = cm.getNetworkCapabilities(network) ?: return false
         return capabilities.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
@@ -167,7 +177,7 @@ class GpsTrackingService : Service() {
             val channel = NotificationChannel(CHANNEL_ID, "Такси Трекер", NotificationManager.IMPORTANCE_LOW)
             channel.description = "Минимальное уведомление для работы GPS"
             val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(channel)
+            manager?.createNotificationChannel(channel)
         }
     }
 
@@ -184,8 +194,7 @@ class GpsTrackingService : Service() {
             .apply()
     }
 
-    private fun loadPendingFromPrefs() {
-        val prefs = getSharedPreferences("TaxiPrefs", Context.MODE_PRIVATE)
+    private fun loadPendingFromPrefs() {        val prefs = getSharedPreferences("TaxiPrefs", Context.MODE_PRIVATE)
         val saved = prefs.getStringSet("pending_gps", emptySet()) ?: emptySet()
         pendingUpdates.clear()
         pendingUpdates.addAll(saved)
@@ -194,7 +203,8 @@ class GpsTrackingService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         fusedLocationClient.removeLocationUpdates(locationCallback)
-        isRunning = false    }
+        isRunning = false
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 }
