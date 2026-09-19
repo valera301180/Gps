@@ -8,18 +8,6 @@ workflows:
       vars:
         PACKAGE_NAME: "ru.taxisharan.driver"
       java: 17
-    triggering:
-      events:
-        - push
-        - pull_request
-      branch_patterns:
-        - pattern: 'main'
-          include: true
-          source: true
-    cache:
-      cache_paths:
-        - $HOME/.gradle/caches
-        - $HOME/.gradle/wrapper
     scripts:
       - name: Set Android SDK location
         script: |
@@ -27,6 +15,16 @@ workflows:
       - name: Build Android APK
         script: |
           gradle assembleRelease --stacktrace
+          # Показываем все созданные APK файлы
+          find build -name "*.apk" -type f
+      - name: Copy APK to artifacts
+        script: |
+          mkdir -p artifacts
+          if [ -f "build/outputs/apk/release/app-release.apk" ]; then
+            cp build/outputs/apk/release/app-release.apk artifacts/
+          fi
+          if [ -f "build/outputs/apk/debug/app-debug.apk" ]; then
+            cp build/outputs/apk/debug/app-debug.apk artifacts/
+          fi
     artifacts:
-      - build/**/outputs/apk/release/*.apk
-      - build/**/outputs/apk/debug/*.apk
+      - artifacts/*.apk
