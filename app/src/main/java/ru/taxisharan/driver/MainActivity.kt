@@ -35,21 +35,18 @@ class MainActivity : AppCompatActivity() {
         tvStatus = findViewById(R.id.tvStatus)
         tvPoints = findViewById(R.id.tvPoints)
 
-        // Загружаем сохраненный ID
         val prefs = getSharedPreferences("TaxiPrefs", MODE_PRIVATE)
         val savedId = prefs.getString("driver_id", "")
         if (!savedId.isNullOrBlank()) {
             etDriverId.setText(savedId)
         }
 
-        // Проверяем, запущен ли уже сервис
         isTracking = GpsTrackingService.isRunning
-
         updateUI()
 
-        findViewById<TextView>(R.id.tvRegisterLink).setOnClickListener {            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/your_max_bot"))) // Замените на реальную ссылку
+        findViewById<TextView>(R.id.tvRegisterLink).setOnClickListener {
+            Toast.makeText(this, "Откройте приложение MAX, найдите бота 'Диспетчер' и напишите 'Хочу работать'", Toast.LENGTH_LONG).show()
         }
-
         findViewById<TextView>(R.id.tvConsentLink).setOnClickListener {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://такси-люкс.рф/driver_agreement.html")))
         }
@@ -74,10 +71,9 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        // Сохраняем ID
         getSharedPreferences("TaxiPrefs", MODE_PRIVATE).edit()
             .putString("driver_id", driverId)
-            .putBoolean("is_active", true) // Для автозапуска
+            .putBoolean("is_active", true)
             .apply()
 
         if (!checkPermissions()) {
@@ -96,11 +92,11 @@ class MainActivity : AppCompatActivity() {
         }
         
         isTracking = true
-        updateUI()    }
+        updateUI()
+    }
 
     private fun pauseTracking() {
-        val intent = Intent(this, GpsTrackingService::class.java).apply {
-            action = GpsTrackingService.ACTION_PAUSE
+        val intent = Intent(this, GpsTrackingService::class.java).apply {            action = GpsTrackingService.ACTION_PAUSE
         }
         startService(intent)
         
@@ -110,16 +106,15 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateUI() {
         if (isTracking) {
-            btnAction.text = "⏸ Пауза"
+            btnAction.text = "⏸ ПАУЗА"
             tvStatus.text = "🔵 Активно"
             tvStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_blue_dark))
         } else {
-            btnAction.text = "▶ Продолжить"
+            btnAction.text = "▶ ПРОДОЛЖИТЬ"
             tvStatus.text = "🟡 Пассивно (60 сек)"
             tvStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_orange_dark))
         }
         
-        // Обновляем счетчик точек (читаем из SharedPreferences, который обновляет сервис)
         val points = getSharedPreferences("TaxiPrefs", MODE_PRIVATE).getInt("points_sent", 0)
         tvPoints.text = "Отправлено точек: $points"
     }
@@ -145,7 +140,8 @@ class MainActivity : AppCompatActivity() {
         ActivityCompat.requestPermissions(this, perms.toTypedArray(), 100)
     }
 
-    override fun onResume() {        super.onResume()
-        updateUI() // Обновляем статус при возврате на экран
+    override fun onResume() {
+        super.onResume()
+        updateUI()
     }
 }
