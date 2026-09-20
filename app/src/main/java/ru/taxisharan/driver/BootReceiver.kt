@@ -11,7 +11,7 @@ class BootReceiver : BroadcastReceiver() {
             val prefs = context.getSharedPreferences("TaxiPrefs", Context.MODE_PRIVATE)
             val wasActive = prefs.getBoolean("is_active", false)
             val driverId = prefs.getString("driver_id", "")
-
+            
             if (wasActive && !driverId.isNullOrBlank()) {
                 val serviceIntent = Intent(context, GpsTrackingService::class.java).apply {
                     action = GpsTrackingService.ACTION_START
