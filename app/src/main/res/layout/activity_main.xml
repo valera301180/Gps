@@ -6,72 +6,102 @@
     android:padding="24dp"
     android:gravity="center_horizontal">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Такси Шаран: Трекер"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="32dp"/>
-
-    <EditText
-        android:id="@+id/etDriverId"
+    <!-- ЭКРАН РЕГИСТРАЦИИ (Показывается, если нет driver_id) -->
+    <LinearLayout
+        android:id="@+id/layoutRegistration"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Введите ваш ID водителя"
-        android:inputType="text"
-        android:layout_marginBottom="16dp"/>
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:visibility="gone">
 
-    <CheckBox
-        android:id="@+id/cbConsent"
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Регистрация водителя"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="32dp"/>
+
+        <EditText
+            android:id="@+id/etPhone"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="+79991234567"
+            android:inputType="phone"
+            android:layout_marginBottom="16dp"/>
+
+        <Button
+            android:id="@+id/btnRegister"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Зарегистрироваться"
+            android:layout_marginBottom="16dp"/>
+
+        <TextView
+            android:id="@+id/tvRegisterStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@android:color/holo_red_dark"
+            android:layout_marginTop="8dp"/>
+    </LinearLayout>
+
+    <!-- ЭКРАН ТРЕКИНГА (Показывается, если driver_id получен) -->
+    <LinearLayout        android:id="@+id/layoutTracking"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Я ознакомился с условиями"
-        android:layout_marginBottom="8dp"/>
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:visibility="gone">
 
-    <TextView
-        android:id="@+id/tvConsentLink"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Читать текст согласия на сайте"
-        android:textColor="@android:color/holo_blue_dark"
-        android:layout_marginBottom="32dp"/>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Такси Трекер"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="32dp"/>
 
-    <TextView
-        android:id="@+id/tvStatus"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="🔴 Остановлено"
-        android:textSize="18sp"
-        android:layout_marginBottom="8dp"/>
+        <TextView
+            android:id="@+id/tvStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="⚪ Инициализация..."
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="16dp"/>
 
-    <TextView
-        android:id="@+id/tvPoints"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Отправлено точек: 0"
-        android:layout_marginBottom="24dp"/>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Ваш ID:"
+            android:textSize="14sp"
+            android:textColor="@android:color/darker_gray"/>
 
-    <Button
-        android:id="@+id/btnAction"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="▶ Начать трекинг"
-        android:layout_marginBottom="16dp"/>
+        <TextView
+            android:id="@+id/tvDriverId"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="DRV_XXXX"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="24dp"/>
 
-    <TextView
-        android:id="@+id/tvRegisterLink"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Нет ID? Зарегистрируйтесь через бота MAX"
-        android:textColor="@android:color/holo_blue_dark"/>
+        <TextView
+            android:id="@+id/tvPoints"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Отправлено точек: 0"
+            android:textSize="16sp"
+            android:layout_marginBottom="32dp"/>
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Для полного отключения удалите приложение"
-        android:textSize="12sp"
-        android:textColor="@android:color/darker_gray"
-        android:layout_marginTop="32dp"/>
+        <TextView
+            android:layout_width="wrap_content"            android:layout_height="wrap_content"
+            android:text="Приложение работает в фоне.\nДля полного отключения удалите его или остановите в настройках."
+            android:textSize="12sp"
+            android:textColor="@android:color/darker_gray"
+            android:gravity="center"
+            android:layout_marginTop="16dp"/>
+    </LinearLayout>
 
 </LinearLayout>
