@@ -193,7 +193,7 @@ class GpsTrackingService : Service() {
         val json = JSONObject().apply {
             put("driver_id", driverId)
             put("lat", location.latitude)
-            put("lng", location.longitude) // Исправлено на lng согласно ТЗ PHP скрипта
+            put("lng", location.longitude)
             put("accuracy", location.accuracy.toDouble())            put("battery", batteryPct)
             put("mode", currentMode)
             put("timestamp", timestamp)
@@ -251,13 +251,16 @@ class GpsTrackingService : Service() {
     private fun playSound(soundNumber: Int) {
         try {
             val resId = if (soundNumber == 1) R.raw.sound1 else R.raw.sound2
+            
             mediaPlayer?.stop()
             mediaPlayer?.reset()
-            mediaPlayer?.setDataSource(this, android.net.Uri.parse("android.resource://$packageName/$resId"))
+            
+            val uri = android.net.Uri.parse("android.resource://$packageName/$resId")
+            mediaPlayer?.setDataSource(this, uri)
             mediaPlayer?.prepare()
             mediaPlayer?.start()
         } catch (e: Exception) {
-            // Ошибка воспроизведения, игнорируем, чтобы не крашить сервис
+            // Игнорируем любые ошибки воспроизведения, чтобы сервис продолжал работать
         }
     }
 
@@ -289,10 +292,10 @@ class GpsTrackingService : Service() {
         .setSmallIcon(android.R.drawable.ic_menu_mylocation)
         .setOngoing(true)
         .build()
-
     private fun updateNotification(text: String) {
         val manager = getSystemService(NotificationManager::class.java)
-        manager?.notify(NOTIF_ID, createNotification(text))    }
+        manager?.notify(NOTIF_ID, createNotification(text))
+    }
 
     private fun savePendingToPrefs() {
         getSharedPreferences("TaxiPrefs", Context.MODE_PRIVATE).edit()
