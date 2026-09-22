@@ -5,17 +5,14 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.location.Location
 import android.media.MediaPlayer
-import android.os.BatteryManager
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import androidx.core.app.NotificationCompat
 import com.google.android.gms.location.FusedLocationProviderClient
-import com.google.android.gms.location.LocationCallback
-import com.google.android.gms.location.LocationRequest
-import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import okhttp3.MediaType.Companion.toMediaType
@@ -30,256 +27,144 @@ import java.util.Locale
 class GpsTrackingService : Service() {
     companion object {
         const val ACTION_START = "START"
-        const val ACTION_PAUSE = "PAUSE"
         var isRunning = false
         private const val NOTIF_ID = 101
         private const val CHANNEL_ID = "TaxiTrackerChannel"
     }
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
-    private lateinit var locationCallback: LocationCallback
-    private var isPassiveMode = false
     private var driverId: String = ""
     private val client = OkHttpClient()
-    private val pendingUpdates = mutableListOf<String>()
-    
-    // Переменные для динамических интервалов и звуков
     private var commandIntervalMs = 60000L
     private var gpsIntervalMs = 120000L
     private var currentMode = "offline"
     private var mediaPlayer: MediaPlayer? = null
+    private val handler = Handler(Looper.getMainLooper())
+
     override fun onCreate() {
         super.onCreate()
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         createNotificationChannel()
         isRunning = true
-        mediaPlayer = MediaPlayer().apply {
-            setOnCompletionListener { reset() }
-        }
+        mediaPlayer = MediaPlayer()
     }
-
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
-            ACTION_START -> {
-                driverId = intent.getStringExtra("driver_id") ?: "UNKNOWN"
-                isPassiveMode = false
-                currentMode = "offline"
-                startForeground(NOTIF_ID, createNotification("🟡 Офлайн (ожидание)"))
-                startLocationUpdates(60000L)
-                fetchCommands()
-            }
-            ACTION_PAUSE -> {
-                isPassiveMode = true
-                startForeground(NOTIF_ID, createNotification("🟡 Пассивный режим"))
-                startLocationUpdates(60000L)
-            }
+        if (intent?.action == ACTION_START) {
+            driverId = intent.getStringExtra("driver_id") ?: "UNKNOWN"
+            startForeground(NOTIF_ID, createNotification("🟡 Офлайн"))
+            startLoops()
         }
-        processPendingUpdates()
         return START_STICKY
     }
 
-    private fun startLocationUpdates(interval: Long) {
-        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, interval)
-            .setMinUpdateIntervalMillis(interval / 2)
-            .build()
-        locationCallback = object : LocationCallback() {
-            override fun onLocationResult(result: LocationResult) {
-                for (location in result.locations) {
-                    sendLocation(location)
-                }
+    private fun startLoops() {
+        handler.post(object : Runnable {
+            override fun run() {
+                fetchCommands()
+                handler.postDelayed(this, commandIntervalMs)
             }
-        }
-        try {
-            fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, mainLooper)
-        } catch (e: SecurityException) {
-            stopSelf()
-        }
-    }
-
-    private fun fetchCommands() {        val json = JSONObject().apply { put("driver_id", driverId) }.toString()
-        val mediaType = "application/json; charset=utf-8".toMediaType()
-        val body = json.toRequestBody(mediaType)
-        val request = Request.Builder()
-            .url("https://такси-люкс.рф/get_commands.php")
-            .post(body)
-            .build()
-
-        client.newCall(request).enqueue(object : okhttp3.Callback {
-            override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
-                // Игнорируем ошибки сети, сервис продолжит работу
-            }
-
-            override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
-                if (response.isSuccessful) {
-                    val responseBody = response.body?.string()
-                    if (responseBody != null) {
-                        try {
-                            val jsonResp = JSONObject(responseBody)
-                            if (jsonResp.optString("status") == "ok") {
-                                val newMode = jsonResp.optString("mode", "offline")
-                                val sounds = jsonResp.optJSONArray("sounds")
-                                
-                                commandIntervalMs = jsonResp.optInt("command_interval", 60) * 1000L
-                                gpsIntervalMs = jsonResp.optInt("gps_interval", 120) * 1000L
-
-                                if (newMode != currentMode) {
-                                    currentMode = newMode
-                                    val statusText = if (currentMode == "online") "🔵 Онлайн" else "🟡 Офлайн"
-                                    val manager = getSystemService(NotificationManager::class.java)
-                                    manager?.notify(NOTIF_ID, createNotification(statusText))
-                                    
-                                    // Перезапускаем GPS с новым интервалом
-                                    fusedLocationClient.removeLocationUpdates(locationCallback)
-                                    startLocationUpdates(gpsIntervalMs)
-                                }
-
-                                if (sounds != null && sounds.length() > 0) {
-                                    for (i in 0 until sounds.length()) {
-                                        val soundId = sounds.optInt(i)
-                                        playSound(soundId)
-                                    }
-                                }
-                            }
-                        } catch (e: Exception) {
-                            // Игнорируем ошибки парсинга
-                        }
-                    }
-                }
-                // Планируем следующий опрос                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                    fetchCommands()
-                }, commandIntervalMs)
+        })
+        
+        handler.post(object : Runnable {
+            override fun run() {
+                requestLocation()
+                handler.postDelayed(this, gpsIntervalMs)
             }
         })
     }
 
-    private fun playSound(soundNumber: Int) {
-        try {
-            val resId = if (soundNumber == 1) R.raw.sound1 else R.raw.sound2
-            mediaPlayer?.stop()
-            mediaPlayer?.reset()
-            val uri = android.net.Uri.parse("android.resource://$packageName/$resId")
-            mediaPlayer?.setDataSource(this, uri)
-            mediaPlayer?.prepare()
-            mediaPlayer?.start()
-        } catch (e: Exception) {
-            // Игнорируем ошибки звука, чтобы не крашить сервис
-        }
-    }
-
-    private fun sendLocation(location: Location) {
-        val mode = if (isPassiveMode) "passive" else currentMode
-        val timestamp = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault()).format(Date())
-        
-        var batteryPct = 0
-        try {
-            val batteryIntent = this.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-            val level = batteryIntent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
-            val scale = batteryIntent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
-            if (level >= 0 && scale > 0) {
-                batteryPct = (level * 100 / scale)
-            }
-        } catch (e: Exception) {
-            batteryPct = 0
-        }
-        
-        val json = JSONObject().apply {
-            put("driver_id", driverId)
-            put("lat", location.latitude)
-            put("lng", location.longitude) // Изменено на lng для соответствия PHP
-            put("accuracy", location.accuracy.toDouble())
-            put("speed", location.speed.toDouble())
-            put("battery", batteryPct)
-            put("mode", mode)
-            put("timestamp", timestamp)
-        }
-        val jsonString = json.toString()
-        if (isNetworkAvailable()) {
-            sendToServer(jsonString)        } else {
-            if (pendingUpdates.size < 1000) {
-                pendingUpdates.add(jsonString)
-                savePendingToPrefs()
-            }
-        }
-    }
-
-    private fun sendToServer(jsonString: String) {
-        val mediaType = "application/json; charset=utf-8".toMediaType()
-        val body = jsonString.toRequestBody(mediaType)
+    private fun fetchCommands() {
+        val json = JSONObject().put("driver_id", driverId).toString()
         val request = Request.Builder()
-            .url("https://такси-люкс.рф/update_gps.php")
-            .post(body)
+            .url("https://такси-люкс.рф/get_commands.php")
+            .post(json.toRequestBody("application/json; charset=utf-8".toMediaType()))
             .build()
+
         client.newCall(request).enqueue(object : okhttp3.Callback {
-            override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
-                synchronized(pendingUpdates) {
-                    if (pendingUpdates.size < 1000) pendingUpdates.add(jsonString)
-                    savePendingToPrefs()
+            override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {}
+            override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
+                if (response.isSuccessful) {
+                    val body = response.body?.string() ?: return
+                    try {
+                        val resp = JSONObject(body)
+                        if (resp.optString("status") == "ok") {
+                            val newMode = resp.optString("mode", "offline")
+                            commandIntervalMs = resp.optInt("command_interval", 60) * 1000L
+                            gpsIntervalMs = resp.optInt("gps_interval", 120) * 1000L
+                            
+                            if (newMode != currentMode) {
+                                currentMode = newMode
+                                val text = if (currentMode == "online") "🔵 Онлайн" else "🟡 Офлайн"
+                                getSystemService(NotificationManager::class.java)?.notify(NOTIF_ID, createNotification(text))
+                            }                            
+                            val sounds = resp.optJSONArray("sounds")
+                            if (sounds != null) {
+                                for (i in 0 until sounds.length()) playSound(sounds.optInt(i))
+                            }
+                        }
+                    } catch (e: Exception) {}
                 }
             }
+        })
+    }
+
+    private fun playSound(id: Int) {
+        try {
+            val resId = if (id == 1) R.raw.sound1 else R.raw.sound2
+            mediaPlayer?.stop()
+            mediaPlayer?.reset()
+            mediaPlayer?.setDataSource(this, android.net.Uri.parse("android.resource://$packageName/$resId"))
+            mediaPlayer?.prepare()
+            mediaPlayer?.start()
+        } catch (e: Exception) {}
+    }
+
+    private fun requestLocation() {
+        fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).addOnSuccessListener { loc ->
+            if (loc != null) sendLocation(loc)
+        }
+    }
+
+    private fun sendLocation(loc: Location) {
+        val json = JSONObject().apply {
+            put("driver_id", driverId)
+            put("lat", loc.latitude)
+            put("lng", loc.longitude)
+            put("accuracy", loc.accuracy.toDouble())
+            put("mode", currentMode)
+            put("timestamp", SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault()).format(Date()))
+        }
+        
+        val request = Request.Builder()
+            .url("https://такси-люкс.рф/update_gps.php")
+            .post(json.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
+            .build()
+            
+        client.newCall(request).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {}
             override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
                 if (response.isSuccessful) {
                     val prefs = getSharedPreferences("TaxiPrefs", Context.MODE_PRIVATE)
-                    prefs.edit().putInt("points_sent", prefs.getInt("points_sent", 0) + 1).apply()
-                }
+                    prefs.edit().putInt("points_sent", prefs.getInt("points_sent", 0) + 1).apply()                }
             }
         })
-    }
-
-    private fun processPendingUpdates() {
-        loadPendingFromPrefs()
-        val iterator = pendingUpdates.iterator()
-        while (iterator.hasNext()) {
-            val jsonStr = iterator.next()
-            if (isNetworkAvailable()) {
-                sendToServer(jsonStr)
-                iterator.remove()
-            } else {
-                break
-            }
-        }
-        savePendingToPrefs()
-    }
-
-    private fun isNetworkAvailable(): Boolean {
-        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager ?: return false
-        val network = cm.activeNetwork ?: return false
-        val capabilities = cm.getNetworkCapabilities(network) ?: return false        return capabilities.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(CHANNEL_ID, "Такси Трекер", NotificationManager.IMPORTANCE_LOW)
-            channel.description = "Минимальное уведомление для работы GPS"
-            val manager = getSystemService(NotificationManager::class.java)
-            manager?.createNotificationChannel(channel)
+            getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
         }
     }
 
     private fun createNotification(text: String) = NotificationCompat.Builder(this, CHANNEL_ID)
-        .setContentTitle("Такси Шаран")
-        .setContentText(text)
-        .setSmallIcon(android.R.drawable.ic_menu_mylocation)
-        .setOngoing(true)
-        .build()
-
-    private fun savePendingToPrefs() {
-        getSharedPreferences("TaxiPrefs", Context.MODE_PRIVATE).edit()
-            .putStringSet("pending_gps", pendingUpdates.toSet())
-            .apply()
-    }
-
-    private fun loadPendingFromPrefs() {
-        val prefs = getSharedPreferences("TaxiPrefs", Context.MODE_PRIVATE)
-        val saved = prefs.getStringSet("pending_gps", emptySet()) ?: emptySet()
-        pendingUpdates.clear()
-        pendingUpdates.addAll(saved)
-    }
+        .setContentTitle("Такси Шаран").setContentText(text)
+        .setSmallIcon(android.R.drawable.ic_menu_mylocation).setOngoing(true).build()
 
     override fun onDestroy() {
         super.onDestroy()
-        fusedLocationClient.removeLocationUpdates(locationCallback)
+        handler.removeCallbacksAndMessages(null)
         mediaPlayer?.release()
-        mediaPlayer = null
         isRunning = false
     }
 
