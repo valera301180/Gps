@@ -11,7 +11,6 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
@@ -31,7 +30,6 @@ class GpsTrackingService : Service() {
         var isRunning = false
         private const val NOTIF_ID = 101
         private const val CHANNEL_ID = "TaxiTrackerChannel"
-        private const val TAG = "TaxiTracker"
     }
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
@@ -47,15 +45,13 @@ class GpsTrackingService : Service() {
         super.onCreate()
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         createNotificationChannel()
-        isRunning = true        mediaPlayer = MediaPlayer()
-        Log.d(TAG, "Service created")
+        isRunning = true
+        mediaPlayer = MediaPlayer()
     }
-
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_START) {
             driverId = intent.getStringExtra("driver_id") ?: "UNKNOWN"
-            Log.d(TAG, "Service started with driverId: $driverId")
-            startForeground(NOTIF_ID, createNotification(" Офлайн"))
+            startForeground(NOTIF_ID, createNotification("🟡 Офлайн"))
             startLoops()
         }
         return START_STICKY
@@ -78,7 +74,6 @@ class GpsTrackingService : Service() {
     }
 
     private fun fetchCommands() {
-        Log.d(TAG, "Fetching commands for $driverId")
         val json = JSONObject().put("driver_id", driverId).toString()
         val request = Request.Builder()
             .url("https://xn----7sbyhcf3beb0k.xn--p1ai/get_commands.php")
@@ -86,33 +81,28 @@ class GpsTrackingService : Service() {
             .build()
 
         client.newCall(request).enqueue(object : okhttp3.Callback {
-            override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
-                Log.e(TAG, "Failed to fetch commands: ${e.message}")
-            }
+            override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {}
             override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
                 if (response.isSuccessful) {
                     val body = response.body?.string() ?: return
-                    Log.d(TAG, "Commands response: $body")
                     try {
                         val resp = JSONObject(body)
                         if (resp.optString("status") == "ok") {
-                            val newMode = resp.optString("mode", "offline")                            commandIntervalMs = resp.optInt("command_interval", 60) * 1000L
+                            val newMode = resp.optString("mode", "offline")
+                            commandIntervalMs = resp.optInt("command_interval", 60) * 1000L
                             gpsIntervalMs = resp.optInt("gps_interval", 120) * 1000L
                             
                             if (newMode != currentMode) {
                                 currentMode = newMode
-                                val text = if (currentMode == "online") "🔵 Онлайн" else " Офлайн"
+                                val text = if (currentMode == "online") "🔵 Онлайн" else "🟡 Офлайн"
                                 getSystemService(NotificationManager::class.java)?.notify(NOTIF_ID, createNotification(text))
-                            }
-                            
+                            }                            
                             val sounds = resp.optJSONArray("sounds")
                             if (sounds != null) {
                                 for (i in 0 until sounds.length()) playSound(sounds.optInt(i))
                             }
                         }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error parsing commands: ${e.message}")
-                    }
+                    } catch (e: Exception) {}
                 }
             }
         })
@@ -126,26 +116,17 @@ class GpsTrackingService : Service() {
             mediaPlayer?.setDataSource(this, android.net.Uri.parse("android.resource://$packageName/$resId"))
             mediaPlayer?.prepare()
             mediaPlayer?.start()
-        } catch (e: Exception) {
-            Log.e(TAG, "Error playing sound: ${e.message}")
-        }
+        } catch (e: Exception) {}
     }
 
     private fun requestLocation() {
-        Log.d(TAG, "Requesting location...")
         fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).addOnSuccessListener { loc ->
-            if (loc != null) {
-                Log.d(TAG, "Location received: lat=${loc.latitude}, lng=${loc.longitude}")
-                sendLocation(loc)
-            } else {
-                Log.w(TAG, "Location is null")
-            }
-        }.addOnFailureListener { e ->
-            Log.e(TAG, "Location error: ${e.message}")
+            if (loc != null) sendLocation(loc)
         }
     }
 
-    private fun sendLocation(loc: Location) {        val json = JSONObject().apply {
+    private fun sendLocation(loc: Location) {
+        val json = JSONObject().apply {
             put("driver_id", driverId)
             put("lat", loc.latitude)
             put("lng", loc.longitude)
@@ -154,25 +135,17 @@ class GpsTrackingService : Service() {
             put("timestamp", SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault()).format(Date()))
         }
         
-        Log.d(TAG, "Sending location: $json")
-        
         val request = Request.Builder()
             .url("https://xn----7sbyhcf3beb0k.xn--p1ai/update_gps.php")
             .post(json.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
             .build()
             
         client.newCall(request).enqueue(object : okhttp3.Callback {
-            override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
-                Log.e(TAG, "Failed to send location: ${e.message}")
-            }
+            override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {}
             override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
                 if (response.isSuccessful) {
-                    Log.d(TAG, "Location sent successfully")
                     val prefs = getSharedPreferences("TaxiPrefs", Context.MODE_PRIVATE)
-                    prefs.edit().putInt("points_sent", prefs.getInt("points_sent", 0) + 1).apply()
-                } else {
-                    Log.e(TAG, "Server error: ${response.code}")
-                }
+                    prefs.edit().putInt("points_sent", prefs.getInt("points_sent", 0) + 1).apply()                }
             }
         })
     }
@@ -193,7 +166,7 @@ class GpsTrackingService : Service() {
         handler.removeCallbacksAndMessages(null)
         mediaPlayer?.release()
         isRunning = false
-        Log.d(TAG, "Service destroyed")
     }
+
     override fun onBind(intent: Intent?): IBinder? = null
 }
