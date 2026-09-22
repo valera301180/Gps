@@ -51,7 +51,7 @@ class GpsTrackingService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_START) {
             driverId = intent.getStringExtra("driver_id") ?: "UNKNOWN"
-            startForeground(NOTIF_ID, createNotification("🟡 Офлайн"))
+            startForeground(NOTIF_ID, createNotification(" Офлайн"))
             startLoops()
         }
         return START_STICKY
@@ -76,7 +76,7 @@ class GpsTrackingService : Service() {
     private fun fetchCommands() {
         val json = JSONObject().put("driver_id", driverId).toString()
         val request = Request.Builder()
-            .url("https://такси-люкс.рф/get_commands.php")
+            .url("https://xn----7sbyhcf3beb0k.xn--p1ai/get_commands.php")
             .post(json.toRequestBody("application/json; charset=utf-8".toMediaType()))
             .build()
 
@@ -94,7 +94,7 @@ class GpsTrackingService : Service() {
                             
                             if (newMode != currentMode) {
                                 currentMode = newMode
-                                val text = if (currentMode == "online") "🔵 Онлайн" else "🟡 Офлайн"
+                                val text = if (currentMode == "online") "🔵 Онлайн" else " Офлайн"
                                 getSystemService(NotificationManager::class.java)?.notify(NOTIF_ID, createNotification(text))
                             }                            
                             val sounds = resp.optJSONArray("sounds")
@@ -136,7 +136,7 @@ class GpsTrackingService : Service() {
         }
         
         val request = Request.Builder()
-            .url("https://такси-люкс.рф/update_gps.php")
+            .url("https://xn----7sbyhcf3beb0k.xn--p1ai/update_gps.php")
             .post(json.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
             .build()
             
