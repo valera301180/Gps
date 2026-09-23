@@ -1,6 +1,5 @@
 package ru.taxisharan.driver
 
-import android.app.DownloadManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -11,12 +10,10 @@ import android.location.Location
 import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
-import android.os.Environment
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import androidx.core.app.NotificationCompat
-import androidx.core.content.FileProvider
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
@@ -25,7 +22,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
-import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -47,11 +43,11 @@ class GpsTrackingService : Service() {
     private var gpsIntervalMs = 120000L
     private var currentMode = "offline"
     private var mediaPlayer: MediaPlayer? = null
-    private val handler = Handler(Looper.getMainLooper())    private var updateChecked = false
+    private val handler = Handler(Looper.getMainLooper())
+    private var updateChecked = false
 
     override fun onCreate() {
-        super.onCreate()
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        super.onCreate()        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         createNotificationChannel()
         createUpdateChannel()
         isRunning = true
@@ -68,20 +64,15 @@ class GpsTrackingService : Service() {
     }
 
     private fun startLoops() {
-        handler.post(object : Runnable {
-            override fun run() {
-                fetchCommands()
-                checkForUpdate()
-                handler.postDelayed(this, commandIntervalMs)
-            }
-        })
-        
-        handler.post(object : Runnable {
-            override fun run() {
-                requestLocation()
-                handler.postDelayed(this, gpsIntervalMs)
-            }
-        })
+        handler.post {
+            fetchCommands()
+            checkForUpdate()
+            handler.postDelayed(this, commandIntervalMs)
+        }
+        handler.post {
+            requestLocation()
+            handler.postDelayed(this, gpsIntervalMs)
+        }
     }
 
     private fun fetchCommands() {
@@ -96,7 +87,8 @@ class GpsTrackingService : Service() {
             override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
                 if (response.isSuccessful) {
                     val body = response.body?.string() ?: return
-                    try {                        val resp = JSONObject(body)
+                    try {
+                        val resp = JSONObject(body)
                         if (resp.optString("status") == "ok") {
                             val newMode = resp.optString("mode", "offline")
                             commandIntervalMs = resp.optInt("command_interval", 60) * 1000L
@@ -104,8 +96,7 @@ class GpsTrackingService : Service() {
                             
                             if (newMode != currentMode) {
                                 currentMode = newMode
-                                val text = if (currentMode == "online") "🔵 Онлайн" else "🟡 Офлайн"
-                                getSystemService(NotificationManager::class.java)?.notify(NOTIF_ID, createNotification(text))
+                                val text = if (currentMode == "online") " Онлайн" else "🟡 Офлайн"                                getSystemService(NotificationManager::class.java)?.notify(NOTIF_ID, createNotification(text))
                             }
                             
                             val sounds = resp.optJSONArray("sounds")
@@ -145,7 +136,8 @@ class GpsTrackingService : Service() {
         val notification = NotificationCompat.Builder(this, UPDATE_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_download)
             .setContentTitle("🔄 Вышло обновление!")
-            .setContentText("Нажмите, чтобы скачать новую версию")            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentText("Нажмите для обновления")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .build()
@@ -153,12 +145,11 @@ class GpsTrackingService : Service() {
         getSystemService(NotificationManager::class.java)?.notify(UPDATE_NOTIF_ID, notification)
     }
 
-    private fun playSound(id: Int) {
-        try {
+    private fun playSound(id: Int) {        try {
             val resId = if (id == 1) R.raw.sound1 else R.raw.sound2
             mediaPlayer?.stop()
             mediaPlayer?.reset()
-            mediaPlayer?.setDataSource(this, android.net.Uri.parse("android.resource://$packageName/$resId"))
+            mediaPlayer?.setDataSource(this, Uri.parse("android.resource://$packageName/$resId"))
             mediaPlayer?.prepare()
             mediaPlayer?.start()
         } catch (e: Exception) {}
@@ -187,14 +178,10 @@ class GpsTrackingService : Service() {
             
         client.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {}
-            override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
-                if (response.isSuccessful) {
-                    val prefs = getSharedPreferences("TaxiPrefs", Context.MODE_PRIVATE)
-                    prefs.edit().putInt("points_sent", prefs.getInt("points_sent", 0) + 1).apply()
-                }
-            }
+            override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {}
         })
     }
+
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(CHANNEL_ID, "Такси Трекер", NotificationManager.IMPORTANCE_LOW)
@@ -208,7 +195,6 @@ class GpsTrackingService : Service() {
             getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
         }
     }
-
     private fun createNotification(text: String) = NotificationCompat.Builder(this, CHANNEL_ID)
         .setContentTitle("Такси Шаран").setContentText(text)
         .setSmallIcon(android.R.drawable.ic_menu_mylocation).setOngoing(true).build()
