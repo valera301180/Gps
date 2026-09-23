@@ -5,7 +5,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
-import android.content.Intent
+import android.content.Intent                                 
 import android.location.Location
 import android.media.MediaPlayer
 import android.net.Uri
@@ -47,7 +47,8 @@ class GpsTrackingService : Service() {
     private var updateChecked = false
 
     override fun onCreate() {
-        super.onCreate() fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        super.onCreate()
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         createNotificationChannel()
         createUpdateChannel()
         isRunning = true
@@ -96,7 +97,8 @@ class GpsTrackingService : Service() {
                         val resp = JSONObject(body)
                         if (resp.optString("status") == "ok") {
                             val newMode = resp.optString("mode", "offline")
-                            commandIntervalMs = resp.optInt("command_interval", 60) * 1000L gpsIntervalMs = resp.optInt("gps_interval", 120) * 1000L
+                            commandIntervalMs = resp.optInt("command_interval", 60) * 1000L
+                            gpsIntervalMs = resp.optInt("gps_interval", 120) * 1000L
                             
                             if (newMode != currentMode) {
                                 currentMode = newMode
@@ -194,7 +196,8 @@ class GpsTrackingService : Service() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(CHANNEL_ID, "Такси Трекер", NotificationManager.IMPORTANCE_LOW) getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
+            val channel = NotificationChannel(CHANNEL_ID, "Такси Трекер", NotificationManager.IMPORTANCE_LOW)
+            getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
         }
     }
 
