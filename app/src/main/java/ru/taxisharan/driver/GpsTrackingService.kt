@@ -27,6 +27,7 @@ import java.util.Date
 import java.util.Locale
 
 class GpsTrackingService : Service() {
+
     companion object {
         const val ACTION_START = "START"
         var isRunning = false
@@ -36,18 +37,24 @@ class GpsTrackingService : Service() {
         private const val UPDATE_NOTIF_ID = 102
     }
 
+    // ✅ ИСПРАВЛЕНО: Четкое объявление переменных на уровне класса
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private var driverId: String = ""
     private val client = OkHttpClient()
-    private var commandIntervalMs = 60000L
-    private var gpsIntervalMs = 120000L
+    
+    // Динамические интервалы (по умолчанию, как в ТЗ)
+    private var commandIntervalMs = 60000L  // 60 сек
+    private var gpsIntervalMs = 120000L     // 120 сек
+    
     private var currentMode = "offline"
     private var mediaPlayer: MediaPlayer? = null
     private val handler = Handler(Looper.getMainLooper())
     private var updateChecked = false
 
     override fun onCreate() {
-        super.onCreate() fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        super.onCreate()
+        // ✅ Инициализация клиента локаций
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         createNotificationChannel()
         createUpdateChannel()
         isRunning = true
@@ -64,7 +71,7 @@ class GpsTrackingService : Service() {
     }
 
     private fun startLoops() {
-        // Цикл 1: Команды + проверка обновлений (раз в минуту)
+        // Цикл 1: Команды и проверка обновлений
         handler.post(object : Runnable {
             override fun run() {
                 try {
@@ -76,7 +83,7 @@ class GpsTrackingService : Service() {
                 handler.postDelayed(this, commandIntervalMs)
             }
         })
-        
+
         // Цикл 2: GPS (независимо от команд)
         handler.post(object : Runnable {
             override fun run() {
@@ -96,33 +103,40 @@ class GpsTrackingService : Service() {
             .url("https://xn----7sbyhcf3beb0k.xn--p1ai/get_commands.php")
             .post(json.toRequestBody("application/json; charset=utf-8".toMediaType()))
             .build()
+
         client.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
                 // Ошибка сети — просто пропускаем
             }
+
             override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
                 if (response.isSuccessful) {
                     val body = response.body?.string() ?: return
                     try {
                         val resp = JSONObject(body)
                         if (resp.optString("status") == "ok") {
+                            // 1. Обновляем режим
                             val newMode = resp.optString("mode", "offline")
-                            commandIntervalMs = resp.optInt("command_interval", 60) * 1000L
-                            gpsIntervalMs = resp.optInt("gps_interval", 120) * 1000L
-                            
                             if (newMode != currentMode) {
                                 currentMode = newMode
                                 val text = if (currentMode == "online") "🔵 Онлайн" else "🟡 Офлайн"
                                 getSystemService(NotificationManager::class.java)?.notify(NOTIF_ID, createNotification(text))
                             }
-                            
+
+                            // 2. Обновляем интервалы (из ТЗ v12.0)
+                            commandIntervalMs = resp.optInt("command_interval", 60) * 1000L
+                            gpsIntervalMs = resp.optInt("gps_interval", 120) * 1000L
+
+                            // 3. Проигрываем звуки, если сервер прислал команду
                             val sounds = resp.optJSONArray("sounds")
                             if (sounds != null) {
-                                for (i in 0 until sounds.length()) playSound(sounds.optInt(i))
+                                for (i in 0 until sounds.length()) {
+                                    playSound(sounds.optInt(i))
+                                }
                             }
                         }
                     } catch (e: Exception) {
-                        // Ошибка парсинга — пропускаем
+                        // Ошибка парсинга JSON
                     }
                 }
             }
@@ -131,45 +145,43 @@ class GpsTrackingService : Service() {
 
     private fun checkForUpdate() {
         if (updateChecked) return
+
         try {
             val request = Request.Builder()
                 .url("https://xn----7sbyhcf3beb0k.xn--p1ai/version.json")
                 .build()
-            
+
             client.newCall(request).enqueue(object : okhttp3.Callback {
-                override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
-                    // Ошибка сети — попробуем в следующий раз
-                }
+                override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {}
+
                 override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
                     if (response.isSuccessful) {
                         try {
                             val json = JSONObject(response.body?.string())
                             val serverVersion = json.optInt("version_code", 0)
-                            val currentVersion = applicationContext.packageManager .getPackageInfo(applicationContext.packageName, 0).versionCode
-                            
+                            val currentVersion = applicationContext.packageManager
+                                .getPackageInfo(applicationContext.packageName, 0).versionCode
+
                             if (serverVersion > currentVersion) {
                                 updateChecked = true
                                 showUpdateNotification()
                             }
-                        } catch (e: Exception) {
-                            // Ошибка парсинга
-                        }
+                        } catch (e: Exception) {}
                     }
                 }
             })
-        } catch (e: Exception) {
-            // Ошибка — пропускаем
-        }
+        } catch (e: Exception) {}
     }
 
     private fun showUpdateNotification() {
-        val intent = Intent(this, UpdateActivity::class.java)
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        val intent = Intent(this, UpdateActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
         val pendingIntent = PendingIntent.getActivity(
-            this, 0, intent, 
+            this, 0, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        
+
         val notification = NotificationCompat.Builder(this, UPDATE_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_download)
             .setContentTitle("🔄 Вышло обновление!")
@@ -178,7 +190,7 @@ class GpsTrackingService : Service() {
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .build()
-        
+
         getSystemService(NotificationManager::class.java)?.notify(UPDATE_NOTIF_ID, notification)
     }
 
@@ -194,6 +206,7 @@ class GpsTrackingService : Service() {
             // Ошибка воспроизведения
         }
     }
+
     private fun requestLocation() {
         try {
             fusedLocationClient.getCurrentLocation(
@@ -213,58 +226,47 @@ class GpsTrackingService : Service() {
             put("lng", loc.longitude)
             put("accuracy", loc.accuracy.toDouble())
             put("mode", currentMode)
-            put("timestamp", SimpleDateFormat(
-                "yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault()
-            ).format(Date()))
+            put("timestamp", SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault()).format(Date()))
         }
-        
+
         val request = Request.Builder()
             .url("https://xn----7sbyhcf3beb0k.xn--p1ai/update_gps.php")
             .post(json.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
             .build()
-            
+
         client.newCall(request).enqueue(object : okhttp3.Callback {
-            override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
-                // Ошибка сети
-            }
+            override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {}
+
             override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
                 if (response.isSuccessful) {
                     try {
                         val prefs = getSharedPreferences("TaxiPrefs", Context.MODE_PRIVATE)
-                        prefs.edit().putInt(
-                            "points_sent", 
-                            prefs.getInt("points_sent", 0) + 1
-                        ).apply()
-                    } catch (e: Exception) {
-                        // Ошибка сохранения
-                    }
+                        prefs.edit().putInt("points_sent", prefs.getInt("points_sent", 0) + 1).apply()
+                    } catch (e: Exception) {}
                 }
             }
         })
     }
 
-    private fun createNotificationChannel() { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
-                CHANNEL_ID, "Такси Трекер", 
-                NotificationManager.IMPORTANCE_LOW
+                CHANNEL_ID, "Такси Трекер", NotificationManager.IMPORTANCE_LOW
             )
-            getSystemService(NotificationManager::class.java)
-                ?.createNotificationChannel(channel)
+            getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
         }
     }
 
     private fun createUpdateChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
-                UPDATE_CHANNEL_ID, "Обновления", 
-                NotificationManager.IMPORTANCE_HIGH
+                UPDATE_CHANNEL_ID, "Обновления", NotificationManager.IMPORTANCE_HIGH
             )
-            getSystemService(NotificationManager::class.java)
-                ?.createNotificationChannel(channel)
+            getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
         }
     }
 
-    private fun createNotification(text: String) = 
+    private fun createNotification(text: String) =
         NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Такси Шаран")
             .setContentText(text)
