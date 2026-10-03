@@ -93,7 +93,8 @@ class MainActivity : AppCompatActivity() {
         val body = json.toRequestBody(mediaType)
         
         val request = Request.Builder()
-            .url("https://такси-люкс.рф/register_driver.php")
+            // ✅ ИСПРАВЛЕНО: используем Punycode (латиницу) вместо кириллицы
+            .url("https://xn----7sbyhcf3beb0k.xn--p1ai/register_driver.php")
             .post(body)
             .build()
         client.newCall(request).enqueue(object : okhttp3.Callback {
