@@ -1,107 +1,199 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="24dp"
-    android:gravity="center_horizontal">
+    android:background="#f5f5f5">
 
-    <!-- ЭКРАН РЕГИСТРАЦИИ (Показывается, если нет driver_id) -->
     <LinearLayout
-        android:id="@+id/layoutRegistration"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:gravity="center_horizontal"
-        android:visibility="gone">
+        android:padding="16dp">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Регистрация водителя"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="32dp"/>
-
-        <EditText
-            android:id="@+id/etPhone"
+        <!-- ЭКРАН РЕГИСТРАЦИИ -->
+        <LinearLayout
+            android:id="@+id/layoutRegistration"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="+79991234567"
-            android:inputType="phone"
-            android:layout_marginBottom="16dp"/>
+            android:orientation="vertical"
+            android:gravity="center_horizontal"
+            android:visibility="gone"
+            android:padding="20dp"
+            android:background="@android:color/white"
+            android:elevation="2dp">
 
-        <Button
-            android:id="@+id/btnRegister"
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🚕 Регистрация водителя"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="24dp"/>
+
+            <EditText
+                android:id="@+id/etPhone"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="+79991234567"
+                android:inputType="phone"
+                android:layout_marginBottom="16dp"
+                android:padding="12dp"/>
+
+            <Button
+                android:id="@+id/btnRegister"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Зарегистрироваться"
+                android:backgroundTint="#4CAF50"
+                android:textColor="@android:color/white"/>
+
+            <TextView
+                android:id="@+id/tvRegisterStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"/>
+        </LinearLayout>
+
+        <!-- СТАТУС СЕРВИСА -->
+        <LinearLayout
+            android:id="@+id/layoutTracking"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Зарегистрироваться"
-            android:layout_marginBottom="16dp"/>
+            android:orientation="vertical"
+            android:visibility="gone"
+            android:padding="16dp"
+            android:background="@android:color/white"
+            android:elevation="2dp"
+            android:layout_marginBottom="12dp">
 
-        <TextView
-            android:id="@+id/tvRegisterStatus"
-            android:layout_width="wrap_content"
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🚕 Такси Трекер"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="12dp"/>
+
+            <TextView
+                android:id="@+id/tvStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="⚪ Инициализация..."
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="12dp"/>
+
+            <TextView
+                android:id="@+id/tvDriverId"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="ID: DRV_XXXX"
+                android:textSize="14sp"
+                android:textColor="#666"
+                android:layout_marginBottom="8dp"/>
+
+            <TextView
+                android:id="@+id/tvPoints"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="📡 Отправлено точек: 0"
+                android:textSize="15sp"
+                android:layout_marginBottom="8dp"/>
+
+            <TextView
+                android:id="@+id/tvLastGps"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="📍 Координаты: ожидаем..."
+                android:textSize="14sp"
+                android:textColor="#666"/>
+        </LinearLayout>
+
+        <!-- МАСТЕР НАСТРОЕК -->
+        <LinearLayout
+            android:id="@+id/layoutSetup"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="@android:color/holo_red_dark"
-            android:layout_marginTop="8dp"/>
+            android:orientation="vertical"
+            android:visibility="gone"
+            android:padding="16dp"
+            android:background="@android:color/white"
+            android:elevation="2dp"
+            android:layout_marginBottom="12dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="⚙️ Настройки (нажмите, чтобы включить)"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="12dp"/>
+
+            <Button
+                android:id="@+id/btnLocation"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="❌ Включить геолокацию"
+                android:layout_marginBottom="8dp"
+                android:backgroundTint="#FF9800"
+                android:textColor="@android:color/white"/>
+
+            <Button
+                android:id="@+id/btnNotifications"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="❌ Включить уведомления"
+                android:layout_marginBottom="8dp"
+                android:backgroundTint="#FF9800"
+                android:textColor="@android:color/white"/>
+
+            <Button
+                android:id="@+id/btnBattery"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="❌ Отключить экономию батареи"
+                android:layout_marginBottom="8dp"
+                android:backgroundTint="#FF9800"
+                android:textColor="@android:color/white"/>
+
+            <Button
+                android:id="@+id/btnAllSettings"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="⚙️ Открыть все настройки"
+                android:backgroundTint="#2196F3"
+                android:textColor="@android:color/white"/>
+        </LinearLayout>
+
+        <!-- ЛОГ СОБЫТИЙ -->
+        <LinearLayout
+            android:id="@+id/layoutTracking"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:background="@android:color/white"
+            android:elevation="2dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="📋 Журнал событий"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp"/>
+
+            <TextView
+                android:id="@+id/tvLog"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Ожидание событий..."
+                android:textSize="12sp"
+                android:fontFamily="monospace"
+                android:background="#f9f9f9"
+                android:padding="8dp"
+                android:minHeight="100dp"/>
+        </LinearLayout>
+
     </LinearLayout>
-
-    <!-- ЭКРАН ТРЕКИНГА (Показывается, если driver_id получен) -->
-    <LinearLayout        android:id="@+id/layoutTracking"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:gravity="center_horizontal"
-        android:visibility="gone">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Такси Трекер"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="32dp"/>
-
-        <TextView
-            android:id="@+id/tvStatus"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="⚪ Инициализация..."
-            android:textSize="20sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="16dp"/>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Ваш ID:"
-            android:textSize="14sp"
-            android:textColor="@android:color/darker_gray"/>
-
-        <TextView
-            android:id="@+id/tvDriverId"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="DRV_XXXX"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="24dp"/>
-
-        <TextView
-            android:id="@+id/tvPoints"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Отправлено точек: 0"
-            android:textSize="16sp"
-            android:layout_marginBottom="32dp"/>
-
-        <TextView
-            android:layout_width="wrap_content"            android:layout_height="wrap_content"
-            android:text="Приложение работает в фоне.\nДля полного отключения удалите его или остановите в настройках."
-            android:textSize="12sp"
-            android:textColor="@android:color/darker_gray"
-            android:gravity="center"
-            android:layout_marginTop="16dp"/>
-    </LinearLayout>
-
-</LinearLayout>
+</ScrollView>
