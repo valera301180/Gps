@@ -37,7 +37,6 @@ class GpsTrackingService : Service() {
         private const val UPDATE_NOTIF_ID = 102
     }
 
-    // ✅ ИСПРАВЛЕНО: Четкое объявление переменных на уровне класса
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private var driverId: String = ""
     private val client = OkHttpClient()
@@ -53,7 +52,6 @@ class GpsTrackingService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        // ✅ Инициализация клиента локаций
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         createNotificationChannel()
         createUpdateChannel()
@@ -100,7 +98,8 @@ class GpsTrackingService : Service() {
     private fun fetchCommands() {
         val json = JSONObject().put("driver_id", driverId).toString()
         val request = Request.Builder()
-            .url("https://xn----7sbyhcf3beb0k.xn--p1ai/get_commands.php")
+            // ✅ ИСПРАВЛЕНО: http:// вместо https://
+            .url("http://такси-люкс.рф/get_commands.php")
             .post(json.toRequestBody("application/json; charset=utf-8".toMediaType()))
             .build()
 
@@ -148,7 +147,8 @@ class GpsTrackingService : Service() {
 
         try {
             val request = Request.Builder()
-                .url("https://xn----7sbyhcf3beb0k.xn--p1ai/version.json")
+                // ✅ ИСПРАВЛЕНО: http:// вместо https://
+                .url("http://такси-люкс.рф/version.json")
                 .build()
 
             client.newCall(request).enqueue(object : okhttp3.Callback {
@@ -230,7 +230,8 @@ class GpsTrackingService : Service() {
         }
 
         val request = Request.Builder()
-            .url("https://xn----7sbyhcf3beb0k.xn--p1ai/update_gps.php")
+            // ✅ ИСПРАВЛЕНО: http:// вместо https://
+            .url("http://такси-люкс.рф/update_gps.php")
             .post(json.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
             .build()
 
