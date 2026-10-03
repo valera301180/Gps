@@ -41,9 +41,8 @@ class GpsTrackingService : Service() {
     private var driverId: String = ""
     private val client = OkHttpClient()
     
-    // Динамические интервалы (по умолчанию, как в ТЗ)
-    private var commandIntervalMs = 60000L  // 60 сек
-    private var gpsIntervalMs = 120000L     // 120 сек
+    private var commandIntervalMs = 60000L
+    private var gpsIntervalMs = 15000L // 15 секунд
     
     private var currentMode = "offline"
     private var mediaPlayer: MediaPlayer? = null
@@ -62,34 +61,28 @@ class GpsTrackingService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_START) {
             driverId = intent.getStringExtra("driver_id") ?: "UNKNOWN"
-            startForeground(NOTIF_ID, createNotification("🟡 Офлайн"))
+            startForeground(NOTIF_ID, createNotification("🟡 Запуск..."))
             startLoops()
         }
         return START_STICKY
     }
 
     private fun startLoops() {
-        // Цикл 1: Команды и проверка обновлений
         handler.post(object : Runnable {
             override fun run() {
                 try {
                     fetchCommands()
                     checkForUpdate()
-                } catch (e: Exception) {
-                    // Игнорируем ошибки, чтобы цикл не прервался
-                }
+                } catch (e: Exception) {}
                 handler.postDelayed(this, commandIntervalMs)
             }
         })
 
-        // Цикл 2: GPS (независимо от команд)
         handler.post(object : Runnable {
             override fun run() {
                 try {
                     requestLocation()
-                } catch (e: Exception) {
-                    // Игнорируем ошибки
-                }
+                } catch (e: Exception) {}
                 handler.postDelayed(this, gpsIntervalMs)
             }
         })
@@ -98,15 +91,12 @@ class GpsTrackingService : Service() {
     private fun fetchCommands() {
         val json = JSONObject().put("driver_id", driverId).toString()
         val request = Request.Builder()
-            // ✅ ИСПРАВЛЕНО: http:// вместо https://
             .url("http://такси-люкс.рф/get_commands.php")
             .post(json.toRequestBody("application/json; charset=utf-8".toMediaType()))
             .build()
 
         client.newCall(request).enqueue(object : okhttp3.Callback {
-            override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
-                // Ошибка сети — просто пропускаем
-            }
+            override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {}
 
             override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
                 if (response.isSuccessful) {
@@ -114,7 +104,6 @@ class GpsTrackingService : Service() {
                     try {
                         val resp = JSONObject(body)
                         if (resp.optString("status") == "ok") {
-                            // 1. Обновляем режим
                             val newMode = resp.optString("mode", "offline")
                             if (newMode != currentMode) {
                                 currentMode = newMode
@@ -122,11 +111,9 @@ class GpsTrackingService : Service() {
                                 getSystemService(NotificationManager::class.java)?.notify(NOTIF_ID, createNotification(text))
                             }
 
-                            // 2. Обновляем интервалы (из ТЗ v12.0)
                             commandIntervalMs = resp.optInt("command_interval", 60) * 1000L
-                            gpsIntervalMs = resp.optInt("gps_interval", 120) * 1000L
+                            gpsIntervalMs = resp.optInt("gps_interval", 15) * 1000L
 
-                            // 3. Проигрываем звуки, если сервер прислал команду
                             val sounds = resp.optJSONArray("sounds")
                             if (sounds != null) {
                                 for (i in 0 until sounds.length()) {
@@ -134,9 +121,7 @@ class GpsTrackingService : Service() {
                                 }
                             }
                         }
-                    } catch (e: Exception) {
-                        // Ошибка парсинга JSON
-                    }
+                    } catch (e: Exception) {}
                 }
             }
         })
@@ -144,10 +129,8 @@ class GpsTrackingService : Service() {
 
     private fun checkForUpdate() {
         if (updateChecked) return
-
         try {
             val request = Request.Builder()
-                // ✅ ИСПРАВЛЕНО: http:// вместо https://
                 .url("http://такси-люкс.рф/version.json")
                 .build()
 
@@ -202,9 +185,7 @@ class GpsTrackingService : Service() {
             mediaPlayer?.setDataSource(this, Uri.parse("android.resource://$packageName/$resId"))
             mediaPlayer?.prepare()
             mediaPlayer?.start()
-        } catch (e: Exception) {
-            // Ошибка воспроизведения
-        }
+        } catch (e: Exception) {}
     }
 
     private fun requestLocation() {
@@ -214,9 +195,7 @@ class GpsTrackingService : Service() {
             ).addOnSuccessListener { loc ->
                 if (loc != null) sendLocation(loc)
             }
-        } catch (e: Exception) {
-            // Ошибка запроса локации
-        }
+        } catch (e: Exception) {}
     }
 
     private fun sendLocation(loc: Location) {
@@ -230,7 +209,6 @@ class GpsTrackingService : Service() {
         }
 
         val request = Request.Builder()
-            // ✅ ИСПРАВЛЕНО: http:// вместо https://
             .url("http://такси-люкс.рф/update_gps.php")
             .post(json.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
             .build()
@@ -242,7 +220,11 @@ class GpsTrackingService : Service() {
                 if (response.isSuccessful) {
                     try {
                         val prefs = getSharedPreferences("TaxiPrefs", Context.MODE_PRIVATE)
-                        prefs.edit().putInt("points_sent", prefs.getInt("points_sent", 0) + 1).apply()
+                        prefs.edit()
+                            .putInt("points_sent", prefs.getInt("points_sent", 0) + 1)
+                            .putFloat("last_lat", loc.latitude.toFloat())
+                            .putFloat("last_lng", loc.longitude.toFloat())
+                            .apply()
                     } catch (e: Exception) {}
                 }
             }
