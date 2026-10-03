@@ -10,7 +10,6 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -30,6 +29,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvDriverId: TextView
     private lateinit var tvPoints: TextView
 
+    // Обычный клиент, без проверок SSL, так как мы используем http://
     private val client = OkHttpClient()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -93,10 +93,11 @@ class MainActivity : AppCompatActivity() {
         val body = json.toRequestBody(mediaType)
         
         val request = Request.Builder()
-            // ✅ ИСПРАВЛЕНО: используем домен такси-люкс.рф (у него есть валидный SSL)
-            .url("https://такси-люкс.рф/register_driver.php")
+            // ✅ ИСПРАВЛЕНО: используем http:// вместо https://
+            .url("http://такси-люкс.рф/register_driver.php")
             .post(body)
             .build()
+            
         client.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
                 runOnUiThread {
