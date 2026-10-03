@@ -93,14 +93,14 @@ class MainActivity : AppCompatActivity() {
         val body = json.toRequestBody(mediaType)
         
         val request = Request.Builder()
-            // ✅ ИСПРАВЛЕНО: используем Punycode (латиницу) вместо кириллицы
-            .url("https://xn----7sbyhcf3beb0k.xn--p1ai/register_driver.php")
+            // ✅ ИСПРАВЛЕНО: используем домен такси-люкс.рф (у него есть валидный SSL)
+            .url("https://такси-люкс.рф/register_driver.php")
             .post(body)
             .build()
         client.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
                 runOnUiThread {
-                    tvRegisterStatus.text = "Ошибка сети. Проверьте интернет."
+                    tvRegisterStatus.text = "Ошибка сети: ${e.message}"
                     tvRegisterStatus.setTextColor(getColor(android.R.color.holo_red_dark))
                     btnRegister.isEnabled = true
                 }
@@ -146,7 +146,8 @@ class MainActivity : AppCompatActivity() {
     private fun startTrackingService(driverId: String) {
         val intent = Intent(this, GpsTrackingService::class.java).apply {
             action = GpsTrackingService.ACTION_START
-            putExtra("driver_id", driverId)        }
+            putExtra("driver_id", driverId)
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(intent)
         } else {
